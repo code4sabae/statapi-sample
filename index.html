@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sample Charts.mjs</title>
+  <script type=module>
+    import Chart from "https://js.sabae.cc/Chart.mjs";
+
+    window.onload = async () => {
+      // APIでデータ取得
+      const indicatorCodeX = "0201010010000020010";
+      const indicatorCodeY = "0201010010000020030";
+      const apiurl = `https://dashboard.e-stat.go.jp/api/1.0/Json/getData?Lang=JP&IndicatorCode=${indicatorCodeX},${indicatorCodeY}&Time=2017CY00&RegionalRank=3&Cycle=3&IsSeasonalAdjustment=1&MetaGetFlg=Y&SectionHeaderFlg=2`;
+      const jsonData = await (await fetch(apiurl)).json();
+      console.log(jsonData);
+
+      // データ準備
+      const dataX = jsonData.GET_STATS.STATISTICAL_DATA.DATA_INF.DATA_OBJ.filter(item => item.VALUE["@indicator"] === indicatorCodeX);
+      const dataY = jsonData.GET_STATS.STATISTICAL_DATA.DATA_INF.DATA_OBJ.filter(item => item.VALUE["@indicator"] === indicatorCodeY);
+      const indicatorNameX = jsonData.GET_STATS.STATISTICAL_DATA.CLASS_INF.CLASS_OBJ[0].CLASS[0]["@name"];
+      const indicatorNameY = jsonData.GET_STATS.STATISTICAL_DATA.CLASS_INF.CLASS_OBJ[0].CLASS[1]["@name"];
+
+      const data = [];
+      dataX.forEach(x => {
+        const dataValue = dataY.find(item => item.VALUE["@regionCode"] === x.VALUE["@regionCode"]).VALUE["$"];
+        const regionName = jsonData.GET_STATS.STATISTICAL_DATA.CLASS_INF.CLASS_OBJ[2].CLASS.find(item => item["@code"] === x.VALUE["@regionCode"])["@name"];
+        data.push({ x: parseFloat(x.VALUE["$"]), y: parseFloat(dataValue), label: regionName });
+      });
+      console.log(data);
+      
+      // グラフ表示
+      new Chart(chart, { type: 'scatter',
+        data: {
+          datasets: [{
+              backgroundColor: "#55E",
+              label: indicatorNameX + " vs. " + indicatorNameY,
+              data
+          }]
+        },
+        options: {
+          scales: {
+            xAxes: [{ scaleLabel: { display: true, labelString: indicatorNameX }, type: 'linear', position: 'bottom' }],
+            yAxes: [{ scaleLabel: { display: true, labelString: indicatorNameY }, type: 'linear', position: 'bottom' }],
+          },
+          tooltips: {
+            callbacks: {
+              label: (item, _data) => {
+                return `${data[item.index].label} ${item.yLabel}%, ${item.xLabel}%`;
+              },
+            }
+          }
+        }
+      });
+    }
+  </script>
+  <style>
+    #chart_code {
+      width: 100vw;
+      height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="chart"></canvas>
+</body>
+</html>
